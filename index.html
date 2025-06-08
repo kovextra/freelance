@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#8B4513" />
+    <title>Pomodoro Timer</title>
+    <style>
+      :root {
+        --primary-red: #dc143c;
+        --dark-red: #8b0000;
+        --primary-brown: #8b4513;
+        --light-brown: #d2691e;
+        --bg-light: #fff5ee;
+        --bg-dark: #3e2723;
+        --text-primary: #333;
+        --text-light: #fff;
+        --shadow: rgba(0, 0, 0, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: var(--bg-light);
+        color: var(--text-primary);
+        min-height: 100vh;
+        overflow-x: hidden;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .container {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 100vh;
+        padding: 1rem;
+        gap: 1rem;
+      }
+
+      @media (orientation: landscape) {
+        .container {
+          grid-template-columns: 1fr 1fr;
+          grid-template-rows: auto 1fr;
+          grid-template-areas:
+            "header header"
+            "timer controls"
+            "history history";
+        }
+      }
+
+      @media (orientation: portrait) {
+        .container {
+          grid-template-areas:
+            "header"
+            "timer"
+            "controls"
+            "history";
+        }
+      }
+
+      .header {
+        grid-area: header;
+        text-align: center;
+        padding: 1rem;
+      }
+
+      .header h1 {
+        color: var(--primary-brown);
+        font-size: 2rem;
+        font-weight: 300;
+        letter-spacing: 2px;
+      }
+
+      .timer-section {
+        grid-area: timer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+      }
+
+      .timer-display {
+        width: min(300px, 80vw);
+        height: min(300px, 80vw);
+        border-radius: 50%;
+        background: linear-gradient(
+          145deg,
+          var(--primary-red),
+          var(--dark-red)
+        );
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px var(--shadow);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .timer-display.break-mode {
+        background: linear-gradient(
+          145deg,
+          var(--primary-brown),
+          var(--bg-dark)
+        );
+      }
+
+      .timer-display::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: conic-gradient(
+          from 0deg,
+          transparent 0deg,
+          var(--bg-light) var(--progress, 0deg),
+          transparent var(--progress, 0deg)
+        );
+        border-radius: 50%;
+        opacity: 0.3;
+      }
+
+      .timer-text {
+        font-size: 3rem;
+        font-weight: 100;
+        color: var(--text-light);
+        z-index: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .timer-label {
+        font-size: 1rem;
+        color: var(--text-light);
+        opacity: 0.8;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        z-index: 1;
+      }
+
+      .controls-section {
+        grid-area: controls;
+        display: grid;
+        gap: 1.5rem;
+        padding: 1rem;
+      }
+
+      .button-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 1rem;
+      }
+
+      button {
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 50px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px var(--shadow);
+      }
+
+      .btn-primary {
+        background: var(--primary-red);
+        color: var(--text-light);
+      }
+
+      .btn-primary:hover {
+        background: var(--dark-red);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px var(--shadow);
+      }
+
+      .btn-secondary {
+        background: var(--primary-brown);
+        color: var(--text-light);
+      }
+
+      .btn-secondary:hover {
+        background: var(--bg-dark);
+        transform: translateY(-2px);
+      }
+
+      .btn-distraction {
+        background: var(--light-brown);
+        color: var(--text-light);
+      }
+
+      .settings {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px var(--shadow);
+      }
+
+      .setting-group {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .setting-group label {
+        font-weight: 500;
+        color: var(--primary-brown);
+      }
+
+      .setting-group input {
+        width: 80px;
+        padding: 0.5rem;
+        border: 2px solid var(--primary-brown);
+        border-radius: 10px;
+        text-align: center;
+        font-size: 1rem;
+      }
+
+      .history-section {
+        grid-area: history;
+        padding: 1rem;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px var(--shadow);
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .history-header h3 {
+        color: var(--primary-brown);
+        font-weight: 500;
+      }
+
+      .chart-container {
+        height: 150px;
+        position: relative;
+        margin-bottom: 1rem;
+      }
+
+      .chart-bar {
+        position: absolute;
+        bottom: 0;
+        background: var(--primary-red);
+        border-radius: 5px 5px 0 0;
+        transition: height 0.3s ease;
+        cursor: pointer;
+      }
+
+      .chart-bar.break {
+        background: var(--primary-brown);
+      }
+
+      .distraction-log {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--bg-light);
+        border-radius: 10px;
+      }
+
+      .distraction-item {
+        padding: 0.5rem;
+        margin: 0.25rem 0;
+        background: white;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        padding: 2rem;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        max-width: 400px;
+        margin: auto;
+        animation: slideUp 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideUp {
+        from {
+          transform: translateY(50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        background: var(--primary-brown);
+        color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px var(--shadow);
+        z-index: 2000;
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1>POMODORO</h1>
+      </header>
+
+      <section class="timer-section">
+        <div class="timer-display" id="timerDisplay">
+          <div class="timer-text" id="timerText">25:00</div>
+          <div class="timer-label" id="timerLabel">WORK</div>
+        </div>
+      </section>
+
+      <section class="controls-section">
+        <div class="button-group">
+          <button class="btn-primary" id="startBtn">START</button>
+          <button class="btn-secondary" id="resetBtn">RESET</button>
+          <button class="btn-distraction" id="distractionBtn">
+            DISTRACTION
+          </button>
+        </div>
+
+        <div class="settings">
+          <div class="setting-group">
+            <label for="workDuration">Work Duration (min)</label>
+            <input
+              type="number"
+              id="workDuration"
+              min="1"
+              max="60"
+              value="25"
+            />
+          </div>
+          <div class="setting-group">
+            <label for="breakDuration">Break Duration (min)</label>
+            <input
+              type="number"
+              id="breakDuration"
+              min="1"
+              max="30"
+              value="5"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="history-section">
+        <div class="history-header">
+          <h3>Session History</h3>
+          <button
+            class="btn-secondary"
+            id="clearHistoryBtn"
+            style="padding: 0.5rem 1rem; font-size: 0.8rem"
+          >
+            Clear
+          </button>
+        </div>
+        <div class="chart-container" id="chartContainer"></div>
+        <div class="distraction-log" id="distractionLog">
+          <h4 style="color: var(--primary-brown); margin-bottom: 0.5rem">
+            Distractions
+          </h4>
+          <div id="distractionList"></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      class PomodoroTimer {
+        constructor() {
+          this.workDuration = 25;
+          this.breakDuration = 5;
+          this.currentTime = this.workDuration * 60;
+          this.isRunning = false;
+          this.isBreak = false;
+          this.interval = null;
+          this.sessions = [];
+          this.distractions = [];
+          this.currentSessionStart = null;
+
+          this.initElements();
+          this.loadSettings();
+          this.initEventListeners();
+          this.updateDisplay();
+          this.renderChart();
+          this.renderDistractions();
+        }
+
+        initElements() {
+          this.timerDisplay = document.getElementById("timerDisplay");
+          this.timerText = document.getElementById("timerText");
+          this.timerLabel = document.getElementById("timerLabel");
+          this.startBtn = document.getElementById("startBtn");
+          this.resetBtn = document.getElementById("resetBtn");
+          this.distractionBtn = document.getElementById("distractionBtn");
+          this.workDurationInput = document.getElementById("workDuration");
+          this.breakDurationInput = document.getElementById("breakDuration");
+          this.chartContainer = document.getElementById("chartContainer");
+          this.distractionList = document.getElementById("distractionList");
+          this.clearHistoryBtn = document.getElementById("clearHistoryBtn");
+        }
+
+        initEventListeners() {
+          this.startBtn.addEventListener("click", () => this.toggleTimer());
+          this.resetBtn.addEventListener("click", () => this.resetTimer());
+          this.distractionBtn.addEventListener("click", () =>
+            this.logDistraction()
+          );
+          this.workDurationInput.addEventListener("change", () =>
+            this.updateSettings()
+          );
+          this.breakDurationInput.addEventListener("change", () =>
+            this.updateSettings()
+          );
+          this.clearHistoryBtn.addEventListener("click", () =>
+            this.clearHistory()
+          );
+        }
+
+        loadSettings() {
+          const saved = localStorage.getItem("pomodoroSettings");
+          if (saved) {
+            const settings = JSON.parse(saved);
+            this.workDuration = settings.workDuration || 25;
+            this.breakDuration = settings.breakDuration || 5;
+            this.sessions = settings.sessions || [];
+            this.distractions = settings.distractions || [];
+
+            this.workDurationInput.value = this.workDuration;
+            this.breakDurationInput.value = this.breakDuration;
+          }
+          this.currentTime = this.workDuration * 60;
+        }
+
+        saveSettings() {
+          const settings = {
+            workDuration: this.workDuration,
+            breakDuration: this.breakDuration,
+            sessions: this.sessions,
+            distractions: this.distractions,
+          };
+          localStorage.setItem("pomodoroSettings", JSON.stringify(settings));
+        }
+
+        updateSettings() {
+          this.workDuration = parseInt(this.workDurationInput.value);
+          this.breakDuration = parseInt(this.breakDurationInput.value);
+
+          if (!this.isRunning) {
+            this.currentTime = this.isBreak
+              ? this.breakDuration * 60
+              : this.workDuration * 60;
+            this.updateDisplay();
+          }
+
+          this.saveSettings();
+        }
+
+        toggleTimer() {
+          if (this.isRunning) {
+            this.pauseTimer();
+          } else {
+            this.startTimer();
+          }
+        }
+
+        startTimer() {
+          this.isRunning = true;
+          this.startBtn.textContent = "PAUSE";
+          this.currentSessionStart = Date.now();
+
+          this.animateButton(this.startBtn);
+
+          this.interval = setInterval(() => {
+            this.currentTime--;
+            this.updateDisplay();
+
+            if (this.currentTime <= 0) {
+              this.completeSession();
+            }
+          }, 1000);
+        }
+
+        pauseTimer() {
+          this.isRunning = false;
+          this.startBtn.textContent = "START";
+          clearInterval(this.interval);
+          this.animateButton(this.startBtn);
+        }
+
+        resetTimer() {
+          this.pauseTimer();
+          this.currentTime = this.isBreak
+            ? this.breakDuration * 60
+            : this.workDuration * 60;
+          this.updateDisplay();
+          this.animateButton(this.resetBtn);
+        }
+
+        completeSession() {
+          clearInterval(this.interval);
+          this.isRunning = false;
+
+          // Log session
+          const session = {
+            type: this.isBreak ? "break" : "work",
+            duration: this.isBreak ? this.breakDuration : this.workDuration,
+            timestamp: Date.now(),
+            distractions: this.distractions.filter(
+              (d) => d.sessionStart === this.currentSessionStart
+            ).length,
+          };
+          this.sessions.push(session);
+          this.saveSettings();
+          this.renderChart();
+
+          // Vibrate and notify
+          if ("vibrate" in navigator) {
+            navigator.vibrate([200, 100, 200]);
+          }
+          this.showNotification(
+            `${this.isBreak ? "Break" : "Work"} session complete!`
+          );
+
+          // Switch mode
+          this.isBreak = !this.isBreak;
+          this.currentTime = this.isBreak
+            ? this.breakDuration * 60
+            : this.workDuration * 60;
+          this.timerLabel.textContent = this.isBreak ? "BREAK" : "WORK";
+          this.timerDisplay.classList.toggle("break-mode", this.isBreak);
+
+          this.animateTimerDisplay();
+          this.updateDisplay();
+          this.startBtn.textContent = "START";
+
+          // Auto-start next session after a short delay
+          setTimeout(() => {
+            if (confirm(`Start ${this.isBreak ? "break" : "work"} session?`)) {
+              this.startTimer();
+            }
+          }, 1000);
+        }
+
+        updateDisplay() {
+          const minutes = Math.floor(this.currentTime / 60);
+          const seconds = this.currentTime % 60;
+          this.timerText.textContent = `${minutes
+            .toString()
+            .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
+          // Update progress indicator
+          const totalTime = this.isBreak
+            ? this.breakDuration * 60
+            : this.workDuration * 60;
+          const progress = ((totalTime - this.currentTime) / totalTime) * 360;
+          this.timerDisplay.style.setProperty("--progress", `${progress}deg`);
+        }
+
+        logDistraction() {
+          if (this.isRunning) {
+            const distraction = {
+              timestamp: Date.now(),
+              sessionStart: this.currentSessionStart,
+              timeInSession: Math.floor(
+                (Date.now() - this.currentSessionStart) / 1000
+              ),
+            };
+            this.distractions.push(distraction);
+            this.saveSettings();
+            this.renderDistractions();
+            this.animateButton(this.distractionBtn);
+            this.showNotification("Distraction logged!");
+
+            if ("vibrate" in navigator) {
+              navigator.vibrate(100);
+            }
+          }
+        }
+
+        renderChart() {
+          this.chartContainer.innerHTML = "";
+          const recentSessions = this.sessions.slice(-10);
+          const maxDuration = Math.max(
+            ...recentSessions.map((s) => s.duration),
+            1
+          );
+
+          recentSessions.forEach((session, index) => {
+            const bar = document.createElement("div");
+            bar.className = `chart-bar ${session.type}`;
+            const height = (session.duration / maxDuration) * 100;
+            bar.style.height = `${height}%`;
+            bar.style.width = `${100 / recentSessions.length - 2}%`;
+            bar.style.left = `${(index * 100) / recentSessions.length + 1}%`;
+            bar.title = `${session.type}: ${session.duration}min (${session.distractions} distractions)`;
+
+            bar.animate([{ height: "0%" }, { height: `${height}%` }], {
+              duration: 500,
+              delay: index * 50,
+              easing: "ease-out",
+              fill: "forwards",
+            });
+
+            this.chartContainer.appendChild(bar);
+          });
+        }
+
+        renderDistractions() {
+          const recentDistractions = this.distractions.slice(-5);
+          this.distractionList.innerHTML = recentDistractions
+            .map((d) => {
+              const time = new Date(d.timestamp).toLocaleTimeString();
+              const sessionTime = Math.floor(d.timeInSession / 60);
+              return `<div class="distraction-item">
+                        <span>${time}</span>
+                        <span>${sessionTime}min into session</span>
+                    </div>`;
+            })
+            .join("");
+        }
+
+        clearHistory() {
+          if (confirm("Clear all session history?")) {
+            this.sessions = [];
+            this.distractions = [];
+            this.saveSettings();
+            this.renderChart();
+            this.renderDistractions();
+            this.showNotification("History cleared!");
+          }
+        }
+
+        showNotification(message) {
+          const notification = document.createElement("div");
+          notification.className = "notification";
+          notification.textContent = message;
+          document.body.appendChild(notification);
+
+          notification.animate(
+            [
+              { transform: "translateX(100%)", opacity: 0 },
+              { transform: "translateX(0)", opacity: 1 },
+            ],
+            {
+              duration: 300,
+              easing: "ease-out",
+            }
+          );
+
+          setTimeout(() => {
+            notification.animate(
+              [
+                { transform: "translateX(0)", opacity: 1 },
+                { transform: "translateX(100%)", opacity: 0 },
+              ],
+              {
+                duration: 300,
+                easing: "ease-in",
+              }
+            ).onfinish = () => notification.remove();
+          }, 3000);
+        }
+
+        animateButton(button) {
+          button.animate(
+            [
+              { transform: "scale(1)" },
+              { transform: "scale(0.95)" },
+              { transform: "scale(1)" },
+            ],
+            {
+              duration: 200,
+              easing: "ease-in-out",
+            }
+          );
+        }
+
+        animateTimerDisplay() {
+          this.timerDisplay.animate(
+            [
+              { transform: "scale(1) rotate(0deg)" },
+              { transform: "scale(1.1) rotate(180deg)" },
+              { transform: "scale(1) rotate(360deg)" },
+            ],
+            {
+              duration: 600,
+              easing: "ease-in-out",
+            }
+          );
+        }
+      }
+
+      // Initialize the app
+      const timer = new PomodoroTimer();
+
+      // Request notification permission
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+
+      // Prevent accidental page refresh
+      window.addEventListener("beforeunload", (e) => {
+        if (timer.isRunning) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+    </script>
+  </body>
+</html>
